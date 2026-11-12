@@ -248,67 +248,107 @@
             <text>No events found for your criteria</text>
           </view>
 
-          <view v-else class="event-cards">
-            <view
-              v-for="event in events"
-              :key="event.id"
-              class="event-card"
-            >
-              <!-- T的一横：标题 -->
-              <view class="card-top" @click="toggleTitleExpand(event.id)">
-                <text class="event-title" :class="{ expanded: expandedTitles[event.id] }">{{ event.title }}</text>
+          <view v-else>
+            <!-- Horizontal Date Selector -->
+            <view class="date-selector">
+              <view 
+                class="date-nav-btn" 
+                :class="{ disabled: currentDateIndex === 0 }"
+                @click="navigateDate(-1)"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
               </view>
 
-              <!-- T的下部：左右分栏 -->
-              <view class="card-body">
-                <!-- 左下：图片位置 -->
-                <view v-if="event.imageUrl" class="card-left">
-                  <image class="event-image" :src="event.imageUrl" mode="aspectFill" />
+              <view class="date-scroll-container">
+                <view class="date-items">
+                  <view
+                    v-for="(group, index) in groupedEvents"
+                    :key="group.dateKey"
+                    class="date-item"
+                    :class="{ active: index === currentDateIndex }"
+                    @click="currentDateIndex = index"
+                  >
+                    <text class="date-item-text">{{ formatGroupTitle(group.dateKey) }}</text>
+                  </view>
+                </view>
+              </view>
+
+              <view 
+                class="date-nav-btn" 
+                :class="{ disabled: currentDateIndex === groupedEvents.length - 1 }"
+                @click="navigateDate(1)"
+              >
+                <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </view>
+            </view>
+
+            <!-- Events for current date -->
+            <view class="event-cards">
+              <view
+                v-for="event in groupedEvents[currentDateIndex]?.events"
+                :key="event.id"
+                class="event-card"
+              >
+                <!-- T的一横：标题 -->
+                <view class="card-top" @click="toggleTitleExpand(event.id)">
+                  <text class="event-title" :class="{ expanded: expandedTitles[event.id] }">{{ event.title }}</text>
                 </view>
 
-                <!-- 右下：信息区域 -->
-                <view class="card-right">
-                  <view class="card-info">
-                    <text class="info-item">{{ formatDateTime(event.startTime, event.endTime) }}</text>
-                    <text class="info-item">{{ event.locationName }}</text>
-                    <text v-if="event.latitude && event.longitude && userLocation" class="info-item">
-                      {{ calculateDistance(userLocation.lat, userLocation.lng, event.latitude, event.longitude) }} miles away
-                    </text>
+                <!-- T的下部：左右分栏 -->
+                <view class="card-body">
+                  <!-- 左下：图片位置 -->
+                  <view v-if="event.imageUrl" class="card-left">
+                    <image class="event-image" :src="event.imageUrl" mode="aspectFill" />
                   </view>
 
-                  <view class="card-tags">
-                    <!-- Indoor/Outdoor标签始终在第一个位置 -->
-                    <view
-                      class="location-badge tag"
-                      :class="event.indoorOutdoor"
-                    >
-                      {{ event.indoorOutdoor === 'Indoor' ? 'Indoor' : 'Outdoor' }}
+                  <!-- 右下：信息区域 -->
+                  <view class="card-right">
+                    <view class="card-info">
+                      <text class="info-item">{{ formatDateTime(event.startTime, event.endTime) }}</text>
+                      <text class="info-item">{{ event.locationName }}</text>
+                      <text v-if="event.latitude && event.longitude && userLocation" class="info-item">
+                        {{ calculateDistance(userLocation.lat, userLocation.lng, event.latitude, event.longitude) }} miles away
+                      </text>
                     </view>
-                    <!-- 其他tags -->
-                    <view
-                  v-if="event.tagNames"
-                  v-for="(tagName, index) in event.tagNames.split(',')"
-                  :key="index"
-                  class="tag"
-                >
-                  {{ tagName.trim() }}
+
+                    <view class="card-tags">
+                      <!-- Indoor/Outdoor标签始终在第一个位置 -->
+                      <view
+                        class="location-badge tag"
+                        :class="event.indoorOutdoor"
+                      >
+                        {{ event.indoorOutdoor === 'Indoor' ? 'Indoor' : 'Outdoor' }}
+                      </view>
+                      <!-- 其他tags -->
+                      <view
+                        v-if="event.tagNames"
+                        v-for="(tagName, index) in event.tagNames.split(',')"
+                        :key="index"
+                        class="tag"
+                      >
+                        {{ tagName.trim() }}
+                      </view>
+                    </view>
+                  </view>
+                </view>
+
+                <!-- Parent Tips - 横跨整行 -->
+                <view v-if="event.parentTips" class="card-parent-tips">
+                  <view class="tips-header">
+                    <text class="tips-label">Parent Tips:</text>
+                    <view v-if="event.bookingUrl" class="card-action" @click="openBookingUrl(event.bookingUrl)">
+                      <text class="action-link">View Details</text>
+                    </view>
+                  </view>
+                  <text class="tips-text">{{ event.parentTips }}</text>
                 </view>
               </view>
             </view>
           </view>
-
-          <!-- Parent Tips - 横跨整行 -->
-          <view v-if="event.parentTips" class="card-parent-tips">
-            <view class="tips-header">
-              <text class="tips-label">Parent Tips:</text>
-              <view v-if="event.bookingUrl" class="card-action" @click="openBookingUrl(event.bookingUrl)">
-                <text class="action-link">View Details</text>
-              </view>
-            </view>
-            <text class="tips-text">{{ event.parentTips }}</text>
-          </view>
-        </view>
-      </view>
         </view>
       </view>
     </view>
@@ -358,7 +398,54 @@ export default {
       showLocationModal: false,
       ageOptions: [], // For desktop sidebar
       interestOptions: [], // For desktop sidebar
-      dateRangeOptions: [3, 5, 7, 10] // For desktop sidebar
+      dateRangeOptions: [3, 5, 7, 10], // For desktop sidebar
+      currentDateIndex: 0 // Track currently visible date index
+    }
+  },
+  computed: {
+    groupedEvents() {
+      const groups = []
+      const today = new Date()
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+      // Create date groups based on selectedDays
+      for (let i = 0; i < this.selectedDays; i++) {
+        const groupDate = new Date(todayStart)
+        groupDate.setDate(todayStart.getDate() + i)
+        const dateKey = `${groupDate.getFullYear()}-${String(groupDate.getMonth() + 1).padStart(2, '0')}-${String(groupDate.getDate()).padStart(2, '0')}`
+        
+        // Find events that overlap with this date
+        const eventsForDate = this.events.filter(event => {
+          const eventStartDate = new Date(event.startTime)
+          const eventStart = new Date(eventStartDate.getFullYear(), eventStartDate.getMonth(), eventStartDate.getDate())
+          
+          const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(event.startTime)
+          const eventEnd = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate())
+          
+          // Check if event overlaps with this date
+          // Two date ranges [eventStart, eventEnd] and [groupDate, groupDate] overlap if:
+          // eventStart <= groupDate AND eventEnd >= groupDate
+          return eventStart.getTime() <= groupDate.getTime() && eventEnd.getTime() >= groupDate.getTime()
+        })
+
+        // Sort events: single-day events first, multi-day events last
+        eventsForDate.sort((a, b) => {
+          const isSingleDayA = this.isSingleDayEvent(a)
+          const isSingleDayB = this.isSingleDayEvent(b)
+          
+          if (isSingleDayA && !isSingleDayB) return -1
+          if (!isSingleDayA && isSingleDayB) return 1
+          return 0
+        })
+
+        groups.push({
+          dateKey,
+          events: eventsForDate
+        })
+      }
+
+      
+      return groups
     }
   },
   async onLoad() {
@@ -766,6 +853,39 @@ export default {
       this.searchTimeout = setTimeout(() => {
         this.fetchEvents()
       }, 500)
+    },
+
+    formatGroupTitle(dateKey) {
+      // Parse dateKey as local time to avoid UTC conversion issues
+      const [year, month, day] = dateKey.split('-').map(Number)
+      const date = new Date(year, month - 1, day)
+      const weekday = date.toLocaleDateString('en-US', { weekday: 'short' })
+      const dayStr = String(date.getDate()).padStart(2, '0')
+      return `${weekday} ${dayStr}`
+    },
+
+    isSingleDayEvent(event) {
+      const eventStart = new Date(event.startTime)
+      const eventStartDate = new Date(eventStart.getFullYear(), eventStart.getMonth(), eventStart.getDate())
+      
+      const eventEndDate = event.endTime ? new Date(event.endTime) : new Date(event.startTime)
+      const eventEndDateOnly = new Date(eventEndDate.getFullYear(), eventEndDate.getMonth(), eventEndDate.getDate())
+      
+      return eventStartDate.getTime() === eventEndDateOnly.getTime()
+    },
+
+    navigateDate(direction) {
+      const newIndex = this.currentDateIndex + direction
+      if (newIndex >= 0 && newIndex < this.groupedEvents.length) {
+        this.currentDateIndex = newIndex
+        // Scroll to make the selected date visible
+        this.$nextTick(() => {
+          const dateItems = document.querySelectorAll('.date-item')
+          if (dateItems[newIndex]) {
+            dateItems[newIndex].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+          }
+        })
+      }
     }
   }
 }
@@ -1223,6 +1343,87 @@ export default {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.date-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background-color: white;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 16px;
+}
+
+.date-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.date-nav-btn:hover:not(.disabled) {
+  background-color: #e0e0e0;
+}
+
+.date-nav-btn.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.date-nav-btn .nav-icon {
+  width: 16px;
+  height: 16px;
+  color: #666;
+}
+
+.date-scroll-container {
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.date-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
+.date-items {
+  display: flex;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.date-item {
+  padding: 6px 12px;
+  background-color: #f5f5f5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.date-item:hover {
+  background-color: #e8e8e8;
+}
+
+.date-item.active {
+  background-color: #1976d2;
+}
+
+.date-item-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  line-height: 1;
+}
+
+.date-item.active .date-item-text {
+  color: white;
 }
 
 .event-card {
